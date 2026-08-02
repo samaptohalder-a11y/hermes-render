@@ -4,9 +4,16 @@ import threading
 from http.server import HTTPServer, BaseHTTPRequestHandler
 
 try:
-    from hermes import AIAgent
-except ImportError:
-    from hermes_cli import AIAgent
+    import hermes
+    print('Successfully imported hermes')
+except Exception as e:
+    print(f'Failed hermes: {e}')
+
+try:
+    import hermes_agent
+    print('Successfully imported hermes_agent')
+except Exception as e:
+    print(f'Failed hermes_agent: {e}')
 
 class HealthCheckHandler(BaseHTTPRequestHandler):
     def do_GET(self):
@@ -22,20 +29,7 @@ def start_health_check_server():
 
 def run():
     threading.Thread(target=start_health_check_server, daemon=True).start()
-
-    api_key = os.getenv('OPENROUTER_API_KEY') or os.getenv('OPENAI_API_KEY')
-    if not api_key:
-        print('Error: OPENROUTER_API_KEY or OPENAI_API_KEY is missing.')
-        sys.exit(1)
-
-    print('Initializing Hermes Agent on Render...')
-
-    agent = AIAgent(
-        skip_memory=True
-    )
-
-    response = agent.run('Hermes Agent is running successfully on Render!')
-    print(f'Agent Output: {response}')
+    print('Health check server running...')
 
 if __name__ == '__main__':
     run()
