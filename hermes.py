@@ -9,7 +9,6 @@ class AIAgent:
         if not self.api_key:
             return 'Error: OPENROUTER_API_KEY environment variable is not set.'
         
-        # Example call to OpenRouter API
         try:
             response = requests.post(
                 url='https://openrouter.ai/api/v1/chat/completions',
@@ -18,11 +17,14 @@ class AIAgent:
                     'Content-Type': 'application/json'
                 },
                 json={
-                    'model': 'meta-llama/llama-3.3-70b-instruct',
+                    'model': 'meta-llama/llama-3.3-70b-instruct:free',
                     'messages': [{'role': 'user', 'content': prompt}]
                 }
             )
             data = response.json()
-            return data['choices'][0]['message']['content']
+            if 'choices' in data and len(data['choices']) > 0:
+                return data['choices'][0]['message']['content']
+            else:
+                return f'OpenRouter API Error: {data}'
         except Exception as e:
             return f'AI Execution Error: {str(e)}'
