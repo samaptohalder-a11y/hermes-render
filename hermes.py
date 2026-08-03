@@ -17,7 +17,7 @@ class AIAgent:
                     'Content-Type': 'application/json'
                 },
                 json={
-                    'model': 'deepseek/deepseek-r1:free',
+                    'model': 'qwen/qwen-2.5-coder-32b-instruct:free',
                     'messages': [{'role': 'user', 'content': prompt}]
                 }
             )
