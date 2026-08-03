@@ -17,7 +17,7 @@ class AIAgent:
                     'Content-Type': 'application/json'
                 },
                 json={
-                    'model': 'qwen/qwen-2.5-coder-32b-instruct:free',
+                    'model': 'google/gemini-2.0-flash-lite-preview-02-05:free',
                     'messages': [{'role': 'user', 'content': prompt}]
                 }
             )
