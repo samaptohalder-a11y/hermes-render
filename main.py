@@ -4,14 +4,7 @@ from fastapi import FastAPI, HTTPException, Header
 from pydantic import BaseModel
 import uvicorn
 
-# Import your agent module
-try:
-    from hermes import AIAgent
-except ImportError:
-    try:
-        from hermes_agent import AIAgent
-    except ImportError:
-        AIAgent = None
+from hermes import AIAgent
 
 app = FastAPI(title='Hermes Agent API')
 
@@ -24,22 +17,13 @@ def health_check():
 
 @app.post('/chat')
 def chat_endpoint(request: ChatRequest, authorization: str = Header(None)):
-    # Optional API key protection check
     expected_key = os.getenv('AGENT_API_KEY')
     if expected_key and authorization != f'Bearer {expected_key}':
         raise HTTPException(status_code=401, detail='Unauthorized')
 
     user_prompt = request.message
 
-    if AIAgent is None:
-        return {
-            'status': 'fallback',
-            'prompt': user_prompt,
-            'response': f'Agent module not found. Received: {user_prompt}'
-        }
-
     try:
-        # Initialize and run agent
         agent = AIAgent(skip_memory=True)
         agent_response = agent.run(user_prompt)
         return {
