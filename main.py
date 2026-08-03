@@ -1,4 +1,5 @@
 import os
+import uvicorn
 import requests
 from fastapi import FastAPI, Request, HTTPException, Header
 from pydantic import BaseModel
@@ -42,3 +43,7 @@ async def telegram_webhook(request: Request):
     except Exception as e:
         print(f'Webhook error: {e}')
     return {'status': 'ok'}
+
+if __name__ == '__main__':
+    port = int(os.environ.get('PORT', 8080))
+    uvicorn.run('main:app', host='0.0.0.0', port=port, reload=False)
