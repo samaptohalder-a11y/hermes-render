@@ -38,8 +38,11 @@ def post_to_facebook(request: FBPostRequest):
     if not FB_PAGE_ID or not FB_PAGE_ACCESS_TOKEN:
         raise HTTPException(status_code=500, detail='Facebook credentials are not set in environment variables.')
     
-    agent = AIAgent(skip_memory=True)
-    post_content = agent.run(f'Write an engaging Facebook post about: {request.prompt}')
+    try:
+        agent = AIAgent(skip_memory=True)
+        post_content = agent.run(f'Write an engaging Facebook post about: {request.prompt}')
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f'LLM Error: {str(e)}')
     
     fb_url = f'https://graph.facebook.com/v19.0/{FB_PAGE_ID}/feed'
     payload = {
@@ -62,8 +65,13 @@ async def telegram_webhook(request: Request):
         if 'message' in data and 'text' in data['message']:
             chat_id = data['message']['chat']['id']
             user_text = data['message']['text']
-            agent = AIAgent(skip_memory=True)
-            response_text = agent.run(user_text)
+            
+            try:
+                agent = AIAgent(skip_memory=True)
+                response_text = str(agent.run(user_text))
+            except Exception as err:
+                response_text = f'Sorry, an error occurred with the AI model: {str(err)}'
+            
             if TELEGRAM_TOKEN:
                 telegram_url = f'https://api.telegram.org/bot{TELEGRAM_TOKEN}/sendMessage'
                 requests.post(telegram_url, json={'chat_id': chat_id, 'text': response_text})
