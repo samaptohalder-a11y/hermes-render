@@ -8,9 +8,14 @@ from hermes import AIAgent
 app = FastAPI(title='Hermes Agent API')
 
 TELEGRAM_TOKEN = os.getenv('TELEGRAM_BOT_TOKEN')
+FB_PAGE_ID = os.getenv('FB_PAGE_ID')
+FB_PAGE_ACCESS_TOKEN = os.getenv('FB_PAGE_ACCESS_TOKEN')
 
 class ChatRequest(BaseModel):
     message: str
+
+class FBPostRequest(BaseModel):
+    prompt: str
 
 @app.get('/')
 def health_check():
@@ -27,6 +32,28 @@ def chat_endpoint(request: ChatRequest, authorization: str = Header(None)):
         return {'status': 'success', 'prompt': request.message, 'response': str(agent_response)}
     except Exception as e:
         raise HTTPException(status_code=500, detail=f'Agent Execution Error: {str(e)}')
+
+@app.post('/post-facebook')
+def post_to_facebook(request: FBPostRequest):
+    if not FB_PAGE_ID or not FB_PAGE_ACCESS_TOKEN:
+        raise HTTPException(status_code=500, detail='Facebook credentials are not set in environment variables.')
+    
+    agent = AIAgent(skip_memory=True)
+    post_content = agent.run(f'Write an engaging Facebook post about: {request.prompt}')
+    
+    fb_url = f'https://graph.facebook.com/v19.0/{FB_PAGE_ID}/feed'
+    payload = {
+        'message': post_content,
+        'access_token': FB_PAGE_ACCESS_TOKEN
+    }
+    
+    fb_response = requests.post(fb_url, data=payload)
+    data = fb_response.json()
+    
+    if 'id' in data:
+        return {'status': 'success', 'facebook_post_id': data['id'], 'content': post_content}
+    else:
+        return {'status': 'error', 'details': data}
 
 @app.post('/webhook')
 async def telegram_webhook(request: Request):
