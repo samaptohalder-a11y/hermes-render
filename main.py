@@ -10,7 +10,6 @@ app = FastAPI(title='Hermes Agent API')
 TELEGRAM_TOKEN = os.getenv('TELEGRAM_BOT_TOKEN')
 FB_PAGE_ID = os.getenv('FB_PAGE_ID')
 FB_PAGE_ACCESS_TOKEN = os.getenv('FB_PAGE_ACCESS_TOKEN')
-GEMINI_KEY = os.getenv('GEMINI_API_KEY') or os.getenv('OPENROUTER_API_KEY')
 
 class ChatRequest(BaseModel):
     message: str
@@ -28,7 +27,7 @@ def chat_endpoint(request: ChatRequest, authorization: str = Header(None)):
     if expected_key and authorization != f'Bearer {expected_key}':
         raise HTTPException(status_code=401, detail='Unauthorized')
     try:
-        agent = AIAgent(api_key=GEMINI_KEY, base_url='https://generativelanguage.googleapis.com/v1beta/openai/', skip_memory=True)
+        agent = AIAgent(skip_memory=True)
         agent_response = agent.run(request.message)
         return {'status': 'success', 'prompt': request.message, 'response': str(agent_response)}
     except Exception as e:
@@ -40,7 +39,7 @@ def post_to_facebook(request: FBPostRequest):
         raise HTTPException(status_code=500, detail='Facebook credentials are not set in environment variables.')
     
     try:
-        agent = AIAgent(api_key=GEMINI_KEY, base_url='https://generativelanguage.googleapis.com/v1beta/openai/', skip_memory=True)
+        agent = AIAgent(skip_memory=True)
         post_content = agent.run(f'Write an engaging Facebook post about: {request.prompt}')
     except Exception as e:
         raise HTTPException(status_code=500, detail=f'LLM Error: {str(e)}')
@@ -68,7 +67,7 @@ async def telegram_webhook(request: Request):
             user_text = data['message']['text']
             
             try:
-                agent = AIAgent(api_key=GEMINI_KEY, base_url='https://generativelanguage.googleapis.com/v1beta/openai/', skip_memory=True)
+                agent = AIAgent(skip_memory=True)
                 response_text = str(agent.run(user_text))
             except Exception as err:
                 response_text = f'Sorry, an error occurred with the AI model: {str(err)}'
