@@ -14,11 +14,11 @@ TELEGRAM_TOKEN = os.getenv('TELEGRAM_BOT_TOKEN')
 FB_PAGE_ID = os.getenv('FB_PAGE_ID')
 FB_PAGE_ACCESS_TOKEN = os.getenv('FB_PAGE_ACCESS_TOKEN')
 
-HERMES_CONTEXT = 'You are Hermes, an autonomous AI agent equipped with tools to execute terminal commands, search the web, and send emails on behalf of the user.'
+HERMES_CONTEXT = 'You are Hermes, an autonomous AI agent. User request: '
 
-# --- TOOL 1: Web Search ---
+# --- TOOL FUNCTIONS ---
 def web_search(query: str) -> str:
-    '''Searches the web for real-time information and returns key text content.'''
+    '''Searches the web for real-time information.'''
     try:
         url = f'https://html.duckduckgo.com/html/?q={requests.utils.quote(query)}'
         headers = {'User-Agent': 'Mozilla/5.0'}
@@ -27,9 +27,8 @@ def web_search(query: str) -> str:
     except Exception as e:
         return f'Web search error: {str(e)}'
 
-# --- TOOL 2: Terminal / Shell Execution ---
 def execute_terminal_command(command: str) -> str:
-    '''Executes a terminal or shell command on the host container and returns the output.'''
+    '''Executes a terminal/shell command on the host container.'''
     try:
         result = subprocess.run(command, shell=True, capture_output=True, text=True, timeout=30)
         output = result.stdout if result.returncode == 0 else result.stderr
@@ -37,9 +36,8 @@ def execute_terminal_command(command: str) -> str:
     except Exception as e:
         return f'Terminal error: {str(e)}'
 
-# --- TOOL 3: Send Email ---
 def send_email(to_email: str, subject: str, body: str) -> str:
-    '''Sends an email to a recipient using configured SMTP environment variables.'''
+    '''Sends an email using configured SMTP environment variables.'''
     smtp_server = os.getenv('SMTP_SERVER', 'smtp.gmail.com')
     smtp_port = int(os.getenv('SMTP_PORT', 587))
     sender_email = os.getenv('SENDER_EMAIL')
@@ -63,7 +61,16 @@ def send_email(to_email: str, subject: str, body: str) -> str:
     except Exception as e:
         return f'Email error: {str(e)}'
 
-AVAILABLE_TOOLS = [web_search, execute_terminal_command, send_email]
+def get_initialized_agent():
+    '''Helper function to instantiate AIAgent cleanly.'''
+    agent = AIAgent(skip_memory=True)
+    # Register custom tool functions if supported by the package instance
+    for tool_fn in [web_search, execute_terminal_command, send_email]:
+        if hasattr(agent, 'register_tool'):
+            agent.register_tool(tool_fn)
+        elif hasattr(agent, 'add_tool'):
+            agent.add_tool(tool_fn)
+    return agent
 
 class ChatRequest(BaseModel):
     message: str
@@ -81,8 +88,8 @@ def chat_endpoint(request: ChatRequest, authorization: str = Header(None)):
     if expected_key and authorization != f'Bearer {expected_key}':
         raise HTTPException(status_code=401, detail='Unauthorized')
     try:
-        agent = AIAgent(tools=AVAILABLE_TOOLS, skip_memory=True)
-        agent_response = agent.run(HERMES_CONTEXT + '\nUser request: ' + request.message)
+        agent = get_initialized_agent()
+        agent_response = agent.run(HERMES_CONTEXT + request.message)
         return {'status': 'success', 'prompt': request.message, 'response': str(agent_response)}
     except Exception as e:
         raise HTTPException(status_code=500, detail=f'Agent Execution Error: {str(e)}')
@@ -93,7 +100,7 @@ def post_to_facebook(request: FBPostRequest):
         raise HTTPException(status_code=500, detail='Facebook credentials are not set in environment variables.')
     
     try:
-        agent = AIAgent(skip_memory=True)
+        agent = get_initialized_agent()
         post_content = agent.run(f'Write an engaging Facebook post about: {request.prompt}')
     except Exception as e:
         raise HTTPException(status_code=500, detail=f'LLM Error: {str(e)}')
@@ -121,10 +128,10 @@ async def telegram_webhook(request: Request):
             user_text = data['message']['text']
             
             try:
-                agent = AIAgent(tools=AVAILABLE_TOOLS, skip_memory=True)
-                response_text = str(agent.run(HERMES_CONTEXT + '\nUser request: ' + user_text))
+                agent = get_initialized_agent()
+                response_text = str(agent.run(HERMES_CONTEXT + user_text))
             except Exception as err:
-                response_text = f'Error during tool execution: {str(err)}'
+                response_text = f'Sorry, an error occurred with the AI model: {str(err)}'
             
             if TELEGRAM_TOKEN:
                 telegram_url = f'https://api.telegram.org/bot{TELEGRAM_TOKEN}/sendMessage'
