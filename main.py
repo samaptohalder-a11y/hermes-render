@@ -1,4 +1,4 @@
-import os
+﻿import os
 import uvicorn
 import requests
 import subprocess
@@ -14,7 +14,7 @@ TELEGRAM_TOKEN = os.getenv('TELEGRAM_BOT_TOKEN')
 FB_PAGE_ID = os.getenv('FB_PAGE_ID')
 FB_PAGE_ACCESS_TOKEN = os.getenv('FB_PAGE_ACCESS_TOKEN')
 
-HERMES_CONTEXT = 'You are Hermes, an autonomous AI agent. User request: '
+HERMES_CONTEXT = 'You are Hermes, an autonomous AI agent capable of using tools to perform terminal tasks, cron management, web search, and emailing.'
 
 # --- TOOL FUNCTIONS ---
 def web_search(query: str) -> str:
@@ -35,6 +35,31 @@ def execute_terminal_command(command: str) -> str:
         return output or 'Command executed with no output.'
     except Exception as e:
         return f'Terminal error: {str(e)}'
+
+def list_cron_jobs() -> str:
+    '''Lists all active crontab scheduled jobs for the current user.'''
+    try:
+        result = subprocess.run(['crontab', '-l'], capture_output=True, text=True, timeout=10)
+        if result.returncode == 0:
+            return result.stdout or 'No cron jobs currently scheduled.'
+        elif 'no crontab for' in result.stderr:
+            return 'No crontab entries found.'
+        return f'Crontab output: {result.stderr}'
+    except Exception as e:
+        return f'Cron list error: {str(e)}'
+
+def add_cron_job(schedule: str, command: str) -> str:
+    '''Adds a new job to crontab. Schedule format: e.g. "0 9 * * *" for 9 AM daily.'''
+    try:
+        current = subprocess.run(['crontab', '-l'], capture_output=True, text=True)
+        existing_cron = current.stdout if current.returncode == 0 else ''
+        updated_cron = f'{existing_cron.strip()}\n{schedule} {command}\n'
+        process = subprocess.run(['crontab', '-'], input=updated_cron, text=True, capture_output=True)
+        if process.returncode == 0:
+            return f'Successfully scheduled cron job: "{schedule} {command}"'
+        return f'Cron error: {process.stderr}'
+    except Exception as e:
+        return f'Failed to update cron: {str(e)}'
 
 def send_email(to_email: str, subject: str, body: str) -> str:
     '''Sends an email using configured SMTP environment variables.'''
@@ -62,10 +87,10 @@ def send_email(to_email: str, subject: str, body: str) -> str:
         return f'Email error: {str(e)}'
 
 def get_initialized_agent():
-    '''Helper function to instantiate AIAgent cleanly.'''
+    '''Helper function to instantiate AIAgent cleanly with registered tools.'''
     agent = AIAgent(skip_memory=True)
-    # Register custom tool functions if supported by the package instance
-    for tool_fn in [web_search, execute_terminal_command, send_email]:
+    tools = [web_search, execute_terminal_command, list_cron_jobs, add_cron_job, send_email]
+    for tool_fn in tools:
         if hasattr(agent, 'register_tool'):
             agent.register_tool(tool_fn)
         elif hasattr(agent, 'add_tool'):
